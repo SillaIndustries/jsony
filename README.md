@@ -76,6 +76,8 @@ var v = s.fromJson(Entry1)
 doAssert v.color == ""
 ```
 
+You can force strict mode with a *validationHook*.
+
 ## Converts snake_case to camelCase.
 
 Nim usually uses `camelCase` for its variables, while a bunch of json in the wild uses `snake_case`. This library will convert `snake_case` to `camelCase` for you when reading json.
@@ -131,6 +133,39 @@ proc postHook*(v: var Sizer) =
 var sizer = """{"size":10}""".fromJson(Sizer)
 doAssert sizer.size == 10
 doAssert sizer.originalSize == 10
+```
+
+### `proc validationHook*[T](v: T, foundKeys: seq[string])` Can be used to validate an object.
+
+This hook is executed after *postHook*.
+
+```nim
+
+# Example: raise an exception if a non-optional key is missing
+
+proc raiseOnMissingKey[T: object|ref object](t: T, foundKeys: seq[string]) = 
+    for k,v in t.fieldPairs:
+        if v isnot Option and not foundKeys.contains(k):
+            raise newException(ValueError, "Key not found: '" & k & "'")
+
+type MyType = object
+    myKey: string
+    myOptionalKey: Option[string]
+
+proc validationHook[T: object|ref object](t: T, foundKeys: seq[string]) = 
+    raiseOnMissingKey(t, foundKeys)
+
+
+var s = """{"myKey":"my value"}"""
+var o = s.fromJson(MyType)
+doAssert o.myKey == "my value"
+doAssert o.myOptionalKey == none(string)
+
+
+doAssertRaises ValueError:
+    s = """{}"""
+    discard s.fromJson(MyType)
+
 ```
 
 ### `proc enumHook*()` Can be used to parse enums.
