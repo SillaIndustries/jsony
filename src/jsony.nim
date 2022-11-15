@@ -758,26 +758,29 @@ proc dumpHook*[T](s: var string, v: Option[T]) =
   else:
     s.dumpHook(v.get())
 
+template dumpKeyValue(s: var string, k: untyped, e: untyped, i: var int) = 
+  var skip = false
+  when compiles(skipHook(k, e)):
+    skip = skipHook(k, e) == true
+  if not skip:
+    if i > 0:
+      s.add ','    
+    s.dumpHook(k)
+    s.add ':'
+    s.dumpHook(e)
+    inc i
+
 proc dumpHook*(s: var string, v: object) =
   s.add '{'
   var i = 0
   when compiles(for k, e in v.pairs: discard):
     # Tables and table like objects.
     for k, e in v.pairs:
-      if i > 0:
-        s.add ','
-      s.dumpHook(k)
-      s.add ':'
-      s.dumpHook(e)
-      inc i
+      dumpKeyValue(s, k, e, i)
   else:
     # Normal objects.
     for k, e in v.fieldPairs:
-      if i > 0:
-        s.add ','
-      s.dumpKey(k)
-      s.dumpHook(e)
-      inc i
+      dumpKeyValue(s, k, e, i)
   s.add '}'
 
 proc dumpHook*[N, T](s: var string, v: array[N, t[T]]) =
